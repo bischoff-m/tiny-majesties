@@ -3,7 +3,7 @@ using Mirror;
 
 public class GridManager : NetworkBehaviour
 {
-    private Grid _grid;
+    private CustomGrid _customGrid;
 
     // /// <summary>
     // /// Server side handler for grid update.
@@ -27,7 +27,7 @@ public class GridManager : NetworkBehaviour
     // Start is called before the first frame update
     private void Start()
     {
-        _grid = new Grid(10, 10, new Vector3(0, 0));
+        _customGrid = new CustomGrid(10, 10, new Vector3(0, 0));
     }
 
     // Update is called once per frame
@@ -42,11 +42,11 @@ public class GridManager : NetworkBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            _grid.SetCellValue(mousePos, 1);
+            _customGrid.SetCellValue(mousePos, 1);
         }
         if (Input.GetMouseButtonDown(1))
         {
-            Debug.Log(_grid.GetCellValue(mousePos));
+            Debug.Log(_customGrid.GetCellValue(mousePos));
         }
     }
 }
