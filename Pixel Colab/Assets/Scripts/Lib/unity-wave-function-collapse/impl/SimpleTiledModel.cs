@@ -159,10 +159,10 @@ public class SimpleTiledModel : Model
 		}
 
 		for (int t2 = 0; t2 < T; t2++) for (int t1 = 0; t1 < T; t1++)
-			{
-                tempPropagator[2][t2][t1] = tempPropagator[0][t1][t2];
-                tempPropagator[3][t2][t1] = tempPropagator[1][t1][t2];
-			}
+		{
+            tempPropagator[2][t2][t1] = tempPropagator[0][t1][t2];
+            tempPropagator[3][t2][t1] = tempPropagator[1][t1][t2];
+		}
 
         List<int>[][] sparsePropagator = new List<int>[4][];
         for (int d = 0; d < 4; d++)
@@ -172,17 +172,17 @@ public class SimpleTiledModel : Model
         }
 
         for (int d = 0; d < 4; d++) for (int t1 = 0; t1 < T; t1++)
-            {
-                List<int> sp = sparsePropagator[d][t1];
-                bool[] tp = tempPropagator[d][t1];
+        {
+            List<int> sp = sparsePropagator[d][t1];
+            bool[] tp = tempPropagator[d][t1];
 
-                for (int t2 = 0; t2 < T; t2++) if (tp[t2]) sp.Add(t2);
+            for (int t2 = 0; t2 < T; t2++) if (tp[t2]) sp.Add(t2);
 
-                int ST = sp.Count;
-                propagator[d][t1] = new int[ST];
-                for (int st = 0; st < ST; st++) propagator[d][t1][st] = sp[st];
-            }
+            int ST = sp.Count;
+            propagator[d][t1] = new int[ST];
+            for (int st = 0; st < ST; st++) propagator[d][t1][st] = sp[st];
         }
+    }
 
 
 

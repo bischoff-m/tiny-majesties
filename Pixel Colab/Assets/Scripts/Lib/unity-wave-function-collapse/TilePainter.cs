@@ -51,11 +51,12 @@ public class TilePainter : MonoBehaviour{
 
 	} 
 
-	static GameObject CreatePrefab(UnityEngine.Object fab, Vector3 pos, Quaternion rot) {	
+	static GameObject CreatePrefab(UnityEngine.Object fab, Vector3 pos, Quaternion rot) {
 		GameObject o = PrefabUtility.InstantiatePrefab(fab as GameObject) as GameObject; 
-		if (o == null){
+		if (o == null) {
 			Debug.Log(IsAssetAFolder(fab));
-			return o;}
+			return o;
+		}
 		o.transform.position = pos;
 		o.transform.rotation = rot;
 		return o;
