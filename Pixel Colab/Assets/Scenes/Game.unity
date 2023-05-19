@@ -412,16 +412,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0de47f5099244d54f88442a60cd8190d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  showNoise: 0
+  seed: 89495564
   width: 100
   height: 100
-  tileSize: 1
+  n: 6
+  showNoise: 0
   noiseScale: 12
   noiseXOrigin: 0
   noiseYOrigin: 0
-  n: 6
-  seed: 89495564
-  sprites:
-  - {fileID: 21300000, guid: b7caa444cb04d6e4084d6e4a909b5104, type: 3}
-  - {fileID: 21300000, guid: 10872b7c43e86e74fa311f8d1aaacfa0, type: 3}
-  - {fileID: 21300000, guid: a8a596f791f39a84d81e24dc9de185eb, type: 3}

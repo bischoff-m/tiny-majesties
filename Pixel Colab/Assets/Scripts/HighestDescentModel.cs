@@ -13,20 +13,29 @@ using UnityEngine;
 // TODO: Rewrite as shader if parallelization is possible
 // TODO: Fix problem that most segments are long and thin (by penalizing growth when only a few neighbors are available?)
 
-public class GridGenerator : MonoBehaviour
+        
+// ALGORITHM
+// Inputs
+//     - n: Desired number of segments
+//     - width/height: Dimensions of the map
+// Method:
+//  - Sample Perlin noise into a 2D array with the desired size
+//  - Find the n highest points in the array (each represents the origin of a segment)
+//  - Initialize a 2D array to hold the segment index for each point
+//  - While there is a point that has no segment index
+//  - For each of the segments
+//      - If there is no direct neighbor unoccupied
+//          - Continue
+//      - Assign the current segment to an unoccupied neighbor with the highest value
+// - Return the segmentation
+public class HighestDescentModel : GridModel
 {
-    public bool showNoise = false;
-    public int width = 10;
-    public int height = 10;
-    public float tileSize = 1f;
+    public bool showNoise;
     [Range(0, 50)]
     public float noiseScale = 0.5f;
-    public float noiseXOrigin = 0f;
-    public float noiseYOrigin = 0f;
-    [Range(1, 100)]
-    public int n = 6;
-    public int seed = 0;
-    public List<Sprite> sprites = new();
+    public float noiseXOrigin;
+    public float noiseYOrigin;
+    // public List<Sprite> sprites = new();
 
     // Values of the noise at each point
     private float[,] _noise;
@@ -36,51 +45,16 @@ public class GridGenerator : MonoBehaviour
     private List<Vector2Int>[] _neighbors;
     // Whether a segment is done
     private bool[] _isDone;
-    // Whether the algorithm is running
-    private bool _isRunning;
     // Random number generator
     private System.Random _random;
 
-    public GridGenerator()
-    {
-        Initialize();
-        
-        // ALGORITHM
-        // Inputs
-        //     - n: Desired number of segments
-        //     - width/height: Dimensions of the map
-        // Method:
-        //  - Sample Perlin noise into a 2D array with the desired size
-        //  - Find the n highest points in the array (each represents the origin of a segment)
-        //  - Initialize a 2D array to hold the segment index for each point
-        //  - While there is a point that has no segment index
-        //  - For each of the segments
-        //      - If there is no direct neighbor unoccupied
-        //          - Continue
-        //      - Assign the current segment to an unoccupied neighbor with the highest value
-        // - Return the segmentation
-    }
-
-    public void Start()
-    {
-        RunComplete();
-    }
-
-    public void Update()
-    {
-        // Run until all segments are done, triggered by inspector button
-        if (_isRunning && !IsDone())
-        {
-            Step();
-            Preview();
-            if (IsDone())
-                _isRunning = false;
-        }
-    }
-
     public void OnValidate()
     {
-        if (_noise.GetLength(0) != width
+        if (_noise == null
+            || _tilemap == null
+            || _neighbors == null
+            || _isDone == null
+            || _noise.GetLength(0) != width
             || _noise.GetLength(1) != height
             || _tilemap.GetLength(0) != width
             || _tilemap.GetLength(1) != height
@@ -89,10 +63,10 @@ public class GridGenerator : MonoBehaviour
             Initialize();
         if (showNoise)
             SampleNoise();
-        Preview();
+        Show();
     }
 
-    public void Initialize()
+    public override void Initialize()
     {
         // showNoise
         showNoise = false;
@@ -100,8 +74,8 @@ public class GridGenerator : MonoBehaviour
         // _random
         _random = new System.Random(seed);
         
-        // _isRunning
-        _isRunning = false;
+        // isRunning
+        IsRunning = false;
         
         // _noise
         _noise = new float[width, height];
@@ -123,20 +97,31 @@ public class GridGenerator : MonoBehaviour
         SampleNoise();
         ChooseInitPoints();
     }
-
-    public void RunComplete()
+    
+    public override void Step()
     {
-        if (Application.isPlaying)
-            _isRunning = true;
-        else
-            while (!IsDone())
-            {
-                Step();
-                Preview();
-            }
+        if (showNoise) showNoise = false;
+        for (var i = 0; i < n; i++)
+        {
+            if (_neighbors[i].Count == 0) _isDone[i] = true;
+            if (_isDone[i]) continue;
+            
+            var choice = ChooseNeighbor(i);
+            _isDone[i] = Mark(choice, i);
+        }
+    }
+    
+    protected override bool IsDone() => _isDone.All(x => x);
+
+    public override void Show()
+    {
+        // Create a dictionary that holds _noise
+        var channels = new Dictionary<string, float[,]>();
+        channels.Add("Noise", _noise);
+        Show(_tilemap, channels);
     }
 
-    public void SampleNoise()
+    private void SampleNoise()
     {
         // Sample perlin noise
         for (var x = 0; x < width; x++)
@@ -149,7 +134,7 @@ public class GridGenerator : MonoBehaviour
     }
 
     // Chooses n random points and assign them to segments
-    public void ChooseInitPoints()
+    private void ChooseInitPoints()
     {
         for (var i = 0; i < n; i++)
         {
@@ -204,76 +189,62 @@ public class GridGenerator : MonoBehaviour
         }
         throw new InvalidOperationException("The proportions in the collection do not add up to 1.");
         
+        // ALTERNATIVE ALGORITHM
         // Choose the neighbor with the highest noise value
         // var max = neighbors.Max(point => _noise[point.x, point.y]);
         // return neighbors.First(x => _noise[x.x, x.y] == max);
     }
 
-    public bool IsDone() => _isDone.All(x => x);
-
-    public void Step()
-    {
-        if (showNoise) showNoise = false;
-        for (var i = 0; i < n; i++)
-        {
-            if (_neighbors[i].Count == 0) _isDone[i] = true;
-            if (_isDone[i]) continue;
-            
-            var choice = ChooseNeighbor(i);
-            _isDone[i] = Mark(choice, i);
-        }
-    }
-
-    public void Preview()
-    {
-        if (showNoise) PreviewNoise();
-        else PreviewTilemap();
-    }
-
-    public void PreviewTilemap()
-    {
-        var min = 0;
-        var max = n - 1;
-        
-        // Set up the texture and a Color array to hold pixels during processing.
-        var texture = new Texture2D(width, height);
-        var pix = new Color[width * height];
-        var rend = GetComponent<Renderer>();
-        rend.sharedMaterial.mainTexture = texture;
-        
-        // Convert the values to grayscale pixels.
-        for (var x = 0; x < width; x++)
-        for (var y = 0; y < height; y++)
-            pix[y * width + x] = _tilemap[x, y] != -1
-            ? Color.HSVToRGB(((float)_tilemap[x, y] - min) / (max - min) / n * (n - 1), 0.8f, 0.8f)
-            : Color.black;
-        
-        // Copy the pixel data to the texture and load it into the GPU.
-        texture.SetPixels(pix);
-        texture.filterMode = FilterMode.Point;
-        texture.Apply();
-    }
-
-    public void PreviewNoise()
-    {
-        var max = _noise.Cast<float>().Max();
-        var min = _noise.Cast<float>().Min();
-        
-        // Set up the texture and a Color array to hold pixels during processing.
-        var texture = new Texture2D(width, height);
-        var pix = new Color[width * height];
-        var rend = GetComponent<Renderer>();
-        rend.sharedMaterial.mainTexture = texture;
-        
-        // Convert the values to grayscale pixels.
-        for (var x = 0; x < width; x++)
-        for (var y = 0; y < height; y++)
-            pix[y * width + x] = Color.Lerp(Color.black, Color.white, (_noise[x, y] - min) / (max - min));
-        
-        // Copy the pixel data to the texture and load it into the GPU.
-        texture.SetPixels(pix);
-        texture.Apply();
-    }
+    // public void Preview()
+    // {
+    //     if (showNoise) PreviewNoise();
+    //     else PreviewTilemap();
+    // }
+    //
+    // public void PreviewTilemap()
+    // {
+    //     var min = 0;
+    //     var max = n - 1;
+    //     
+    //     // Set up the texture and a Color array to hold pixels during processing.
+    //     var texture = new Texture2D(width, height);
+    //     var pix = new Color[width * height];
+    //     var rend = GetComponent<Renderer>();
+    //     rend.sharedMaterial.mainTexture = texture;
+    //     
+    //     // Convert the values to grayscale pixels.
+    //     for (var x = 0; x < width; x++)
+    //     for (var y = 0; y < height; y++)
+    //         pix[y * width + x] = _tilemap[x, y] != -1
+    //         ? Color.HSVToRGB(((float)_tilemap[x, y] - min) / (max - min) / n * (n - 1), 0.8f, 0.8f)
+    //         : Color.black;
+    //     
+    //     // Copy the pixel data to the texture and load it into the GPU.
+    //     texture.SetPixels(pix);
+    //     texture.filterMode = FilterMode.Point;
+    //     texture.Apply();
+    // }
+    //
+    // public void PreviewNoise()
+    // {
+    //     var max = _noise.Cast<float>().Max();
+    //     var min = _noise.Cast<float>().Min();
+    //     
+    //     // Set up the texture and a Color array to hold pixels during processing.
+    //     var texture = new Texture2D(width, height);
+    //     var pix = new Color[width * height];
+    //     var rend = GetComponent<Renderer>();
+    //     rend.sharedMaterial.mainTexture = texture;
+    //     
+    //     // Convert the values to grayscale pixels.
+    //     for (var x = 0; x < width; x++)
+    //     for (var y = 0; y < height; y++)
+    //         pix[y * width + x] = Color.Lerp(Color.black, Color.white, (_noise[x, y] - min) / (max - min));
+    //     
+    //     // Copy the pixel data to the texture and load it into the GPU.
+    //     texture.SetPixels(pix);
+    //     texture.Apply();
+    // }
 
     // private void PreviewAsTexture(int[,] values)
     // {
@@ -337,41 +308,18 @@ public class GridGenerator : MonoBehaviour
 }
 
 #if UNITY_EDITOR
-[CustomEditor(typeof(GridGenerator))]
-public class GridGeneratorEditor : Editor
+[CustomEditor(typeof(HighestDescentModel))]
+public class HighestDescentModelEditor : GridModelEditor
 {
     public override void OnInspectorGUI()
     {
-        GridGenerator grid = (GridGenerator)target;
+        base.OnInspectorGUI();
+        HighestDescentModel grid = (HighestDescentModel)target;
         
         if (GUILayout.Button("Toggle Noise Preview"))
         {
             grid.showNoise = !grid.showNoise;
-            grid.Preview();
-        }
-        if (GUILayout.Button("Reset"))
-        {
-            grid.showNoise = false;
-            grid.Initialize();
-            grid.Preview();
-        }
-        if (GUILayout.Button("Step"))
-        {
-            grid.showNoise = false;
-            grid.Step();
-            grid.Preview();
-        }
-        if (GUILayout.Button("Run"))
-        {
-            grid.showNoise = false;
-            grid.RunComplete();
-        }
-        if (GUILayout.Button("Run Next Seed"))
-        {
-            grid.showNoise = false;
-            grid.seed = new System.Random().Next();
-            grid.Initialize();
-            grid.RunComplete();
+            grid.Show();
         }
         DrawDefaultInspector();
     }
