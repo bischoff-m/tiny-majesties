@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public abstract class GridModel : MonoBehaviour
 {
@@ -16,18 +14,32 @@ public abstract class GridModel : MonoBehaviour
     [Range(1, 100)]
     public int n = 6;
 
-    // Functions to display the grid and should be called when the grid is updated
-    // Input: The output and additional output channels of the model
-    // Output: Should not return anything
-    private List<Func<int[,], Dictionary<string, float[,]>, object>> _updateHandlers = new();
+    // Subclasses of GridDisplay which should be called when the grid is updated
+    private readonly List<GridDisplay> _displays = new();
     // Whether the algorithm is running
     protected bool IsRunning;
-    
-    public abstract void Initialize();
+
+    protected abstract void InitializeModel();
     public abstract void Step();
     protected abstract bool IsDone();
 
-    public abstract void Show();
+    public abstract GridUpdateEventArgs GetData();
+    
+    public void Initialize()
+    {
+        InitializeModel();
+        EditorApplication.delayCall += delegate
+        {
+            foreach (var display in _displays)
+                display.Initialize();
+        };
+        Show();
+    }
+
+    public void Show()
+    {
+        OnUpdate(GetData());
+    }
 
     public void Start()
     {
@@ -40,10 +52,18 @@ public abstract class GridModel : MonoBehaviour
         if (IsRunning && !IsDone())
         {
             Step();
-            Show();
             if (IsDone())
+            {
                 IsRunning = false;
+                Show();
+            }
         }
+    }
+
+    public void FixedUpdate()
+    {
+        if (IsRunning)
+            Show();
     }
 
     public void RunComplete()
@@ -58,43 +78,26 @@ public abstract class GridModel : MonoBehaviour
             }
     }
 
-    protected void Show(int[,] output, Dictionary<string, float[,]> channels)
+    private void OnUpdate(GridUpdateEventArgs args)
     {
-        var min = 0;
-        var max = n - 1;
-        
-        // Set up the texture and a Color array to hold pixels during processing.
-        var texture = new Texture2D(width, height);
-        var pix = new Color[width * height];
-        var rend = GetComponent<Renderer>();
-        rend.sharedMaterial.mainTexture = texture;
-        
-        // Convert the values to grayscale pixels.
-        for (var x = 0; x < width; x++)
-        for (var y = 0; y < height; y++)
-            pix[y * width + x] = output[x, y] != -1
-            ? Color.HSVToRGB(((float)output[x, y] - min) / (max - min) / n * (n - 1), 0.8f, 0.8f)
-            : Color.black;
-        
-        // Copy the pixel data to the texture and load it into the GPU.
-        texture.SetPixels(pix);
-        texture.filterMode = FilterMode.Point;
-        texture.Apply();
+        foreach (var display in _displays)
+            display.OnUpdate(args);
+    }
+    
+    public void AddDisplay(GridDisplay display)
+    {
+        if (!_displays.Contains(display))
+            _displays.Add(display);
     }
 }
 
 #if UNITY_EDITOR
-[CustomEditor(typeof(HighestDescentModel))]
+[CustomEditor(typeof(GridModel))]
 public class GridModelEditor : Editor
 {
-    public void OnEnable()
-    {
-        ((GridModel)target).Initialize();
-    }
-
     public override void OnInspectorGUI()
     {
-        GridModel grid = (GridModel)target;
+        var grid = (GridModel)target;
         
         if (GUILayout.Button("Reset"))
         {

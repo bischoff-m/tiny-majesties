@@ -4,10 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-// Next
-// TODO: Cut down system into smaller pieces
-// TODO: Generate map with tiles from output
-// Later
+
 // TODO: Use different noise function for each segment
 // TODO: Do not save all neighbors to make more efficient
 // TODO: Rewrite as shader if parallelization is possible
@@ -30,12 +27,10 @@ using UnityEngine;
 // - Return the segmentation
 public class HighestDescentModel : GridModel
 {
-    public bool showNoise;
     [Range(0, 50)]
     public float noiseScale = 0.5f;
     public float noiseXOrigin;
     public float noiseYOrigin;
-    // public List<Sprite> sprites = new();
 
     // Values of the noise at each point
     private float[,] _noise;
@@ -60,17 +55,23 @@ public class HighestDescentModel : GridModel
             || _tilemap.GetLength(1) != height
             || _neighbors.Length != n
             || _isDone.Length != n)
-            Initialize();
-        if (showNoise)
+        {
+            EditorApplication.delayCall += delegate
+            {
+                Initialize();
+                SampleNoise();
+                Show();
+            };
+        }
+        else
+        {
             SampleNoise();
-        Show();
+            Show();
+        }
     }
 
-    public override void Initialize()
+    protected override void InitializeModel()
     {
-        // showNoise
-        showNoise = false;
-        
         // _random
         _random = new System.Random(seed);
         
@@ -100,7 +101,6 @@ public class HighestDescentModel : GridModel
     
     public override void Step()
     {
-        if (showNoise) showNoise = false;
         for (var i = 0; i < n; i++)
         {
             if (_neighbors[i].Count == 0) _isDone[i] = true;
@@ -113,12 +113,16 @@ public class HighestDescentModel : GridModel
     
     protected override bool IsDone() => _isDone.All(x => x);
 
-    public override void Show()
+    public override GridUpdateEventArgs GetData()
     {
-        // Create a dictionary that holds _noise
-        var channels = new Dictionary<string, float[,]>();
-        channels.Add("Noise", _noise);
-        Show(_tilemap, channels);
+        return new GridUpdateEventArgs
+        {
+            N = n,
+            Width = width,
+            Height = height,
+            Output = _tilemap ?? new int[width, height],
+            Channels = new Dictionary<string, float[,]> { { "Noise", _noise } }
+        };
     }
 
     private void SampleNoise()
@@ -194,134 +198,12 @@ public class HighestDescentModel : GridModel
         // var max = neighbors.Max(point => _noise[point.x, point.y]);
         // return neighbors.First(x => _noise[x.x, x.y] == max);
     }
-
-    // public void Preview()
-    // {
-    //     if (showNoise) PreviewNoise();
-    //     else PreviewTilemap();
-    // }
-    //
-    // public void PreviewTilemap()
-    // {
-    //     var min = 0;
-    //     var max = n - 1;
-    //     
-    //     // Set up the texture and a Color array to hold pixels during processing.
-    //     var texture = new Texture2D(width, height);
-    //     var pix = new Color[width * height];
-    //     var rend = GetComponent<Renderer>();
-    //     rend.sharedMaterial.mainTexture = texture;
-    //     
-    //     // Convert the values to grayscale pixels.
-    //     for (var x = 0; x < width; x++)
-    //     for (var y = 0; y < height; y++)
-    //         pix[y * width + x] = _tilemap[x, y] != -1
-    //         ? Color.HSVToRGB(((float)_tilemap[x, y] - min) / (max - min) / n * (n - 1), 0.8f, 0.8f)
-    //         : Color.black;
-    //     
-    //     // Copy the pixel data to the texture and load it into the GPU.
-    //     texture.SetPixels(pix);
-    //     texture.filterMode = FilterMode.Point;
-    //     texture.Apply();
-    // }
-    //
-    // public void PreviewNoise()
-    // {
-    //     var max = _noise.Cast<float>().Max();
-    //     var min = _noise.Cast<float>().Min();
-    //     
-    //     // Set up the texture and a Color array to hold pixels during processing.
-    //     var texture = new Texture2D(width, height);
-    //     var pix = new Color[width * height];
-    //     var rend = GetComponent<Renderer>();
-    //     rend.sharedMaterial.mainTexture = texture;
-    //     
-    //     // Convert the values to grayscale pixels.
-    //     for (var x = 0; x < width; x++)
-    //     for (var y = 0; y < height; y++)
-    //         pix[y * width + x] = Color.Lerp(Color.black, Color.white, (_noise[x, y] - min) / (max - min));
-    //     
-    //     // Copy the pixel data to the texture and load it into the GPU.
-    //     texture.SetPixels(pix);
-    //     texture.Apply();
-    // }
-
-    // private void PreviewAsTexture(int[,] values)
-    // {
-    //     var converted = new float[values.GetLength(0), values.GetLength(1)];
-    //     for (var x = 0; x < values.GetLength(0); x++)
-    //     for (var y = 0; y < values.GetLength(1); y++)
-    //         converted[x, y] = (float)values[x, y];
-    //     PreviewAsTexture(converted);
-    // }
-    //
-    // // Preview a 2D array as a texture.
-    // private void PreviewAsTexture(float[,] values)
-    // {
-    //     var valWidth = values.GetLength(0);
-    //     var valLength = values.GetLength(1);
-    //     var max = values.Cast<float>().Max();
-    //     var min = values.Cast<float>().Min();
-    //     
-    //     // Set up the texture and a Color array to hold pixels during processing.
-    //     var texture = new Texture2D(valWidth, valLength);
-    //     var pix = new Color[valWidth * valLength];
-    //     var rend = GetComponent<Renderer>();
-    //     rend.sharedMaterial.mainTexture = texture;
-    //     
-    //     // Convert the values to grayscale pixels.
-    //     for (var x = 0; x < valWidth; x++)
-    //     for (var y = 0; y < valLength; y++)
-    //         // pix[y * valWidth + x] = Color.Lerp(Color.black, Color.white, ((float)values[x, y] - min) / (max - min));
-    //         pix[y * valWidth + x] = Color.HSVToRGB((values[x, y] - min) / (max - min), 0.8f, 0.8f);
-    //     
-    //     // Copy the pixel data to the texture and load it into the GPU.
-    //     texture.SetPixels(pix);
-    //     texture.Apply();
-    // }
-    //
-    // // Print a 2D array to the console.
-    // private void PreviewInConsole<T>(T[,] values)
-    // {
-    //     var valWidth = values.GetLength(0);
-    //     var valHeight = values.GetLength(1);
-    //     var str = "";
-    //     for (var y = 0; y < valHeight; y++)
-    //     {
-    //         var line = "";
-    //         for (var x = 0; x < valWidth; x++)
-    //             line += values[x, y] + " ";
-    //         str += line + "\n";
-    //     }
-    //     Debug.Log(str);
-    // }
-
-    // Useful with a bigger tileset to get all the sprites in a folder
-    // private static IEnumerable<T> GetAssetsAtPath<T>(string path) where T : Object
-    // {
-    //     var assets = AssetDatabase.FindAssets($"t:{typeof(T).Name}", new[] { path });
-    //     foreach (var guid in assets)
-    //     {
-    //         yield return AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid));
-    //     }
-    // }
 }
 
 #if UNITY_EDITOR
 [CustomEditor(typeof(HighestDescentModel))]
 public class HighestDescentModelEditor : GridModelEditor
 {
-    public override void OnInspectorGUI()
-    {
-        base.OnInspectorGUI();
-        HighestDescentModel grid = (HighestDescentModel)target;
-        
-        if (GUILayout.Button("Toggle Noise Preview"))
-        {
-            grid.showNoise = !grid.showNoise;
-            grid.Show();
-        }
-        DrawDefaultInspector();
-    }
+    
 }
 #endif
