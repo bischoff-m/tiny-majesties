@@ -1,5 +1,4 @@
-﻿using UnityEditor;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace MapGeneration
 {
@@ -7,6 +6,8 @@ namespace MapGeneration
     {
         // The model which this display is attached to
         public GridModel model;
+        // The state of the grid
+        protected GridState State;
     
         public void Start()
         {
@@ -23,6 +24,12 @@ namespace MapGeneration
         {
             AddSelfAsDisplay();
         }
+        
+        public void SetState(GridState newState)
+        {
+            State = newState;
+            Draw();
+        }
 
         private void AddSelfAsDisplay()
         {
@@ -31,7 +38,7 @@ namespace MapGeneration
         }
 
         public abstract void Initialize();
-    
-        public abstract void OnUpdate(GridUpdateEventArgs args);
+
+        protected abstract void Draw();
     }
 }

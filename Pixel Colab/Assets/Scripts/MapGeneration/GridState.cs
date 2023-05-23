@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MapGeneration
 {
-    public class GridUpdateEventArgs : EventArgs
+    public class GridState : EventArgs
     {
         public int N { get; set; }
         public int Width { get; set; }

@@ -53,21 +53,13 @@ namespace MapGeneration
             _random = new System.Random(seed);
         }
 
-        public new void OnValidate()
+        public void OnValidate()
         {
-            base.OnValidate();
             if (!EditingEnabled)
                 return;
-            if (_noise == null
-                || _tilemap == null
-                || _neighbors == null
-                || _isDone == null
-                || _noise.GetLength(0) != width
-                || _noise.GetLength(1) != height
-                || _tilemap.GetLength(0) != width
-                || _tilemap.GetLength(1) != height
-                || _neighbors.Length != n
-                || _isDone.Length != n)
+            
+            // Delayed call because displays could call DestroyImmediate() which should not be done during OnValidate()
+            if (!IsInitialized())
             {
                 EditorApplication.delayCall += delegate
                 {
@@ -81,6 +73,20 @@ namespace MapGeneration
                 SampleNoise();
                 Show();
             }
+        }
+
+        public override bool IsInitialized()
+        {
+            return _noise != null
+                && _tilemap != null
+                && _neighbors != null
+                && _isDone != null
+                && _noise.GetLength(0) == width
+                && _noise.GetLength(1) == height
+                && _tilemap.GetLength(0) == width
+                && _tilemap.GetLength(1) == height
+                && _neighbors.Length == n
+                && _isDone.Length == n;
         }
 
         protected override void InitializeModel()
@@ -126,14 +132,16 @@ namespace MapGeneration
     
         protected override bool IsDone() => _isDone.All(x => x);
 
-        public override GridUpdateEventArgs GetData()
+        protected override GridState GetState()
         {
-            return new GridUpdateEventArgs
+            return new GridState
             {
                 N = n,
                 Width = width,
                 Height = height,
-                Output = _tilemap ?? new int[width, height],
+                Output = width == _tilemap.GetLength(0) && height == _tilemap.GetLength(1)
+                    ? _tilemap
+                    : new int[width, height],
                 Channels = new Dictionary<string, float[,]> { { "Noise", _noise } }
             };
         }

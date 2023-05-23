@@ -2,10 +2,6 @@
 using UnityEditor;
 using UnityEngine;
 
-// TODO: Dont use GirdUpdateEventArgs but only model.GetData() to remove redundancy
-// TODO: Remove args.Width and args.Height from GridUpdateEventArgs to remove redundancy
-// TODO: Fix bugs when changing model parameters like width and height
-
 namespace MapGeneration
 {
     public class MapDisplay : GridDisplay
@@ -39,11 +35,10 @@ namespace MapGeneration
                     Initialize();
                 else
                 {
-                    // Update existing tiles with new data (e.g. position and scale)
-                    var newData = model.GetData();
-                    for (var x = 0; x < newData.Width; x++)
-                    for (var y = 0; y < newData.Height; y++)
-                        SetTile(x, y, newData.Output[x, y]);
+                    // Update existing tiles with new display data (e.g. position and scale)
+                    for (var x = 0; x < State.Width; x++)
+                    for (var y = 0; y < State.Height; y++)
+                        SetTile(x, y, State.Output[x, y]);
                 }
             };
         }
@@ -65,18 +60,18 @@ namespace MapGeneration
             for (var i = this.transform.childCount; i > 0; --i)
                 DestroyImmediate(this.transform.GetChild(0).gameObject);
         }
-    
-        public override void OnUpdate(GridUpdateEventArgs args)
+
+        protected override void Draw()
         {
             if (prefabs.Count == 0)
                 return;
-            if (args.Width != _tiles.GetLength(0) || args.Height != _tiles.GetLength(1))
+            if (State.Width != _tiles.GetLength(0) || State.Height != _tiles.GetLength(1))
                 Initialize();
         
-            for (var x = 0; x < args.Width; x++)
-            for (var y = 0; y < args.Height; y++)
-                if (_lastOutput[x, y] != args.Output[x, y])
-                    SetTile(x, y, args.Output[x, y]);
+            for (var x = 0; x < State.Width; x++)
+            for (var y = 0; y < State.Height; y++)
+                if (_lastOutput[x, y] != State.Output[x, y])
+                    SetTile(x, y, State.Output[x, y]);
         }
 
         private void SetTile(int x, int y, int segment)

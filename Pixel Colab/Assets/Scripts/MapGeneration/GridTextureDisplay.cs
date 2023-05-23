@@ -17,9 +17,7 @@ namespace MapGeneration
     
         public override void Initialize()
         {
-            if (model)
-                OnUpdate(model.GetData());
-            else
+            if (!model)
                 GetComponent<Renderer>().sharedMaterial.mainTexture = Texture2D.blackTexture;
         }
 
@@ -27,36 +25,36 @@ namespace MapGeneration
         {
             _showNoise = !_showNoise;
             if (model)
-                OnUpdate(model.GetData());
-        }
-    
-        public override void OnUpdate(GridUpdateEventArgs args)
-        {
-            var ratio = (float)args.Width / args.Height;
-            transform.localScale = ratio > 1 ? new Vector3(ratio, 1, 1) : new Vector3(1, 1 / ratio, 1);
-            if (_showNoise)
-                ShowNoise(args);
-            else
-                ShowOutput(args);
+                Draw();
         }
 
-        private void ShowOutput(GridUpdateEventArgs args)
+        protected override void Draw()
+        {
+            var ratio = (float)State.Width / State.Height;
+            transform.localScale = ratio > 1 ? new Vector3(ratio, 1, 1) : new Vector3(1, 1 / ratio, 1);
+            if (_showNoise)
+                ShowNoise();
+            else
+                ShowOutput();
+        }
+
+        private void ShowOutput()
         {
             // Indices of lowest and highest segments
             var min = 0;
-            var max = args.N - 1;
+            var max = State.N - 1;
         
             // Convert the values to grayscale pixels
-            var pix = new Color[args.Width * args.Height];
-            var hueScaling = (args.N - 1) / ((float)args.N);
-            for (var x = 0; x < args.Width; x++)
-            for (var y = 0; y < args.Height; y++)
-                pix[y * args.Width + x] = args.Output[x, y] != -1
-                    ? Color.HSVToRGB(((float)args.Output[x, y] - min) / (max - min) * hueScaling, 0.8f, 0.8f)
+            var pix = new Color[State.Width * State.Height];
+            var hueScaling = (State.N - 1) / ((float)State.N);
+            for (var x = 0; x < State.Width; x++)
+            for (var y = 0; y < State.Height; y++)
+                pix[y * State.Width + x] = State.Output[x, y] != -1
+                    ? Color.HSVToRGB(((float)State.Output[x, y] - min) / (max - min) * hueScaling, 0.8f, 0.8f)
                     : Color.black;
         
             // Set up the texture
-            var texture = new Texture2D(args.Width, args.Height);
+            var texture = new Texture2D(State.Width, State.Height);
             var rend = GetComponent<Renderer>();
             rend.sharedMaterial.mainTexture = texture;
         
@@ -66,22 +64,22 @@ namespace MapGeneration
             texture.Apply();
         }
 
-        private void ShowNoise(GridUpdateEventArgs args)
+        private void ShowNoise()
         {
-            var noise = args.Channels["Noise"];
+            var noise = State.Channels["Noise"];
             var max = noise.Cast<float>().Max();
             var min = noise.Cast<float>().Min();
         
             // Set up the texture and a Color array to hold pixels during processing
-            var texture = new Texture2D(args.Width, args.Height);
-            var pix = new Color[args.Width * args.Height];
+            var texture = new Texture2D(State.Width, State.Height);
+            var pix = new Color[State.Width * State.Height];
             var rend = GetComponent<Renderer>();
             rend.sharedMaterial.mainTexture = texture;
         
             // Convert the values to grayscale pixels
-            for (var x = 0; x < args.Width; x++)
-            for (var y = 0; y < args.Height; y++)
-                pix[y * args.Width + x] = Color.Lerp(Color.black, Color.white, (noise[x, y] - min) / (max - min));
+            for (var x = 0; x < State.Width; x++)
+            for (var y = 0; y < State.Height; y++)
+                pix[y * State.Width + x] = Color.Lerp(Color.black, Color.white, (noise[x, y] - min) / (max - min));
         
             // Copy the pixel data to the texture and load it into the GPU
             texture.SetPixels(pix);

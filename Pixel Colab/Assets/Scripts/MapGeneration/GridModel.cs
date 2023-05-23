@@ -26,7 +26,8 @@ namespace MapGeneration
         protected abstract void InitializeModel();
         public abstract void Step();
         protected abstract bool IsDone();
-        public abstract GridUpdateEventArgs GetData();
+        protected abstract GridState GetState();
+        public abstract bool IsInitialized();
 
         public void Update()
         {
@@ -42,15 +43,6 @@ namespace MapGeneration
             }
         }
 
-        public void OnValidate()
-        {
-            if (!EditingEnabled)
-                return;
-            var data = GetData();
-            if (data.Width != width || data.Height != height || data.N != n)
-                Initialize();
-        }
-
         public void FixedUpdate()
         {
             if (IsRunning)
@@ -61,6 +53,8 @@ namespace MapGeneration
         {
             IsRunning = false;
             InitializeModel();
+            
+            // Delayed call because displays could call Instantiate() which should not be done during OnValidate()
             EditorApplication.delayCall += delegate
             {
                 foreach (var display in _displays)
@@ -71,7 +65,8 @@ namespace MapGeneration
 
         public void Show()
         {
-            OnUpdate(GetData());
+            foreach (var display in _displays)
+                display.SetState(GetState());
         }
 
         public void RunComplete()
@@ -84,12 +79,6 @@ namespace MapGeneration
                     Step();
                     Show();
                 }
-        }
-
-        private void OnUpdate(GridUpdateEventArgs args)
-        {
-            foreach (var display in _displays)
-                display.OnUpdate(args);
         }
     
         public void AddDisplay(GridDisplay display)
@@ -145,6 +134,8 @@ namespace MapGeneration
                 if (GUILayout.Button("Enable Editing"))
                 {
                     grid.EditingEnabled = true;
+                    if (!grid.IsInitialized())
+                        grid.Initialize();
                     grid.Show();
                 }
             }
