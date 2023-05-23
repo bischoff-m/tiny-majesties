@@ -15,22 +15,18 @@ namespace MapGeneration
         // The number of segments in the grid
         [Range(1, 100)]
         public int n = 6;
+        // Whether changes should be reflected to the outputs (subclasses of GridDisplay)
+        public bool EditingEnabled { get; set; }
 
-        // Subclasses of GridDisplay which should be called when the grid is updated
-        private readonly List<GridDisplay> _displays = new();
         // Whether the algorithm is running
         protected bool IsRunning;
+        // Subclasses of GridDisplay which should be called when the grid is updated
+        private readonly List<GridDisplay> _displays = new();
 
         protected abstract void InitializeModel();
         public abstract void Step();
         protected abstract bool IsDone();
-
         public abstract GridUpdateEventArgs GetData();
-
-        public void Start()
-        {
-            RunComplete();
-        }
 
         public void Update()
         {
@@ -48,6 +44,8 @@ namespace MapGeneration
 
         public void OnValidate()
         {
+            if (!EditingEnabled)
+                return;
             var data = GetData();
             if (data.Width != width || data.Height != height || data.N != n)
                 Initialize();
@@ -63,9 +61,12 @@ namespace MapGeneration
         {
             IsRunning = false;
             InitializeModel();
-            foreach (var display in _displays)
-                display.Initialize();
-            Show();
+            EditorApplication.delayCall += delegate
+            {
+                foreach (var display in _displays)
+                    display.Initialize();
+                Show();
+            };
         }
 
         public void Show()
@@ -105,33 +106,48 @@ namespace MapGeneration
         public override void OnInspectorGUI()
         {
             var grid = (GridModel)target;
-            
-            if (GUILayout.Button("Reset"))
+            if (grid.EditingEnabled)
             {
-                grid.Initialize();
-                grid.Show();
+                if (GUILayout.Button("Disable Editing"))
+                {
+                    grid.EditingEnabled = false;
+                }
+                GUILayout.Space(10);
+                if (GUILayout.Button("Reset"))
+                {
+                    grid.Initialize();
+                    grid.Show();
+                }
+                if (GUILayout.Button("Reset To Next Seed"))
+                {
+                    grid.seed = new System.Random().Next();
+                    grid.Initialize();
+                }
+                if (GUILayout.Button("Step"))
+                {
+                    grid.Step();
+                    grid.Show();
+                }
+                if (GUILayout.Button("Run"))
+                {
+                    grid.RunComplete();
+                }
+                if (GUILayout.Button("Run Next Seed"))
+                {
+                    grid.seed = new System.Random().Next();
+                    grid.Initialize();
+                    grid.RunComplete();
+                }
+                DrawDefaultInspector();
             }
-            if (GUILayout.Button("Reset To Next Seed"))
+            else
             {
-                grid.seed = new System.Random().Next();
-                grid.Initialize();
+                if (GUILayout.Button("Enable Editing"))
+                {
+                    grid.EditingEnabled = true;
+                    grid.Show();
+                }
             }
-            if (GUILayout.Button("Step"))
-            {
-                grid.Step();
-                grid.Show();
-            }
-            if (GUILayout.Button("Run"))
-            {
-                grid.RunComplete();
-            }
-            if (GUILayout.Button("Run Next Seed"))
-            {
-                grid.seed = new System.Random().Next();
-                grid.Initialize();
-                grid.RunComplete();
-            }
-            DrawDefaultInspector();
         }
     }
 #endif

@@ -43,10 +43,21 @@ namespace MapGeneration
         private bool[] _isDone;
         // Random number generator
         private System.Random _random;
+        
+        public HighestDescentModel()
+        {
+            _noise = new float[0, 0];
+            _tilemap = new int[0, 0];
+            _neighbors = Array.Empty<List<Vector2Int>>();
+            _isDone = Array.Empty<bool>();
+            _random = new System.Random(seed);
+        }
 
         public new void OnValidate()
         {
             base.OnValidate();
+            if (!EditingEnabled)
+                return;
             if (_noise == null
                 || _tilemap == null
                 || _neighbors == null

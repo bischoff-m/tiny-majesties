@@ -7,21 +7,16 @@ namespace MapGeneration
     {
         // The model which this display is attached to
         public GridModel model;
-
-        protected GridDisplay()
-        {
-            EditorApplication.delayCall += Initialize;
-        }
     
         public void Start()
         {
-            if (model == null)
-                Debug.LogError("GridDisplay has no model");
-            else
+            if (model)
             {
                 AddSelfAsDisplay();
                 Initialize();
             }
+            else
+                Debug.LogError("GridDisplay has no model");
         }
 
         public void OnValidate()
@@ -31,7 +26,7 @@ namespace MapGeneration
 
         private void AddSelfAsDisplay()
         {
-            if (model != null)
+            if (model)
                 model.AddDisplay(this);
         }
 
