@@ -7,67 +7,66 @@ namespace MapGeneration
     public class MapDisplay : GridDisplay
     {
         public List<GameObject> prefabs = new();
-        [Range(0.01f, 10)]
-        public float scale = 1;
+
+        [Range(0.01f, 10)] public float scale = 1;
+
+        // Holds the segment indices that correspond to the tiles that are currently in the scene
+        private int[,] _lastOutput;
 
         // Holds the tile game objects that are currently in the scene
         private GameObject[,] _tiles;
-        // Holds the segment indices that correspond to the tiles that are currently in the scene
-        private int[,] _lastOutput;
-        
+
         public MapDisplay()
         {
             _tiles = new GameObject[0, 0];
             _lastOutput = new int[0, 0];
         }
 
+#if UNITY_EDITOR
         public new void OnValidate()
         {
             base.OnValidate();
-            if (prefabs.Count == 0)
+            if (prefabs.Count == 0 || State == null)
                 return;
-            
+
             EditorApplication.delayCall += delegate
             {
-                if (!model
-                    || model.width != _tiles.GetLength(0)
-                    || model.height != _tiles.GetLength(1))
+                if (State.Width != _tiles.GetLength(0) || State.Height != _tiles.GetLength(1))
                     Initialize();
                 else
-                {
                     // Update existing tiles with new display data (e.g. position and scale)
                     for (var x = 0; x < State.Width; x++)
                     for (var y = 0; y < State.Height; y++)
                         SetTile(x, y, State.Output[x, y]);
-                }
             };
         }
-    
+#endif
+
         public override void Initialize()
         {
-            if (prefabs.Count == 0 || !model || !model.EditingEnabled)
+            if (prefabs.Count == 0 || State == null || !Model.EditingEnabled)
                 return;
-        
+
             // Initialize tiles with null
-            _tiles = new GameObject[model.width, model.height];
+            _tiles = new GameObject[State.Width, State.Height];
             // Initialize last output with -1
-            _lastOutput = new int[model.width, model.height];
-            for (var x = 0; x < model.width; x++)
-            for (var y = 0; y < model.height; y++)
+            _lastOutput = new int[State.Width, State.Height];
+            for (var x = 0; x < State.Width; x++)
+            for (var y = 0; y < State.Height; y++)
                 _lastOutput[x, y] = -1;
-        
+
             // Destroy old tiles
-            for (var i = this.transform.childCount; i > 0; --i)
-                DestroyImmediate(this.transform.GetChild(0).gameObject);
+            for (var i = transform.childCount; i > 0; --i)
+                DestroyImmediate(transform.GetChild(0).gameObject);
         }
 
         protected override void Draw()
         {
-            if (prefabs.Count == 0)
+            if (prefabs.Count == 0 || State == null || !Model.EditingEnabled)
                 return;
             if (State.Width != _tiles.GetLength(0) || State.Height != _tiles.GetLength(1))
                 Initialize();
-        
+
             for (var x = 0; x < State.Width; x++)
             for (var y = 0; y < State.Height; y++)
                 if (_lastOutput[x, y] != State.Output[x, y])
@@ -80,15 +79,15 @@ namespace MapGeneration
             var oldTile = _tiles[x, y];
             if (oldTile)
                 DestroyImmediate(oldTile);
-            
+
             if (segment == -1)
                 return;
 
             var newPrefab = ChoosePrefab(segment);
             var newTile = Instantiate(newPrefab, transform, true);
             newTile.transform.localPosition = new Vector3(
-                (model.width / 2f - x - 0.5f) * scale, 
-                (model.height / 2f - y - 0.5f) * scale,
+                (State.Width / 2f - x - 0.5f) * scale,
+                (State.Height / 2f - y - 0.5f) * scale,
                 0);
             newTile.transform.localScale = scale * newPrefab.transform.localScale;
             newTile.name = $"Tile {x}, {y} ({newPrefab.name})";
@@ -100,4 +99,30 @@ namespace MapGeneration
             return prefabs[segment % prefabs.Count];
         }
     }
+
+#if UNITY_EDITOR
+    [CustomEditor(typeof(MapDisplay))]
+    public class MapDisplayEditor : GridDisplayEditor
+    {
+        private Transform _root;
+
+        private void OnEnable()
+        {
+            _root = ((MapDisplay)target).transform;
+        }
+
+        protected override void OnRemove()
+        {
+            base.OnRemove();
+            if (_root.childCount > 0
+                && EditorUtility.DisplayDialog(
+                    $"{name}",
+                    $"Remove all child objects of {name}?",
+                    "Remove",
+                    "Cancel"))
+                for (var i = _root.childCount; i > 0; --i)
+                    DestroyImmediate(_root.GetChild(0).gameObject);
+        }
+    }
+#endif
 }

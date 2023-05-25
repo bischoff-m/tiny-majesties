@@ -4,27 +4,29 @@ using UnityEngine;
 
 namespace MapGeneration
 {
-    public class GridTextureDisplay : GridDisplay
+    public class PreviewDisplay : GridDisplay
     {
         private bool _showNoise;
-    
+
+#if UNITY_EDITOR
         public new void OnValidate()
         {
             base.OnValidate();
             if (GetComponent<Renderer>() == null)
                 gameObject.AddComponent<MeshRenderer>();
         }
-    
+#endif
+
         public override void Initialize()
         {
-            if (!model)
+            if (!Model)
                 GetComponent<Renderer>().sharedMaterial.mainTexture = Texture2D.blackTexture;
         }
 
         public void ToggleNoise()
         {
             _showNoise = !_showNoise;
-            if (model)
+            if (Model)
                 Draw();
         }
 
@@ -43,7 +45,7 @@ namespace MapGeneration
             // Indices of lowest and highest segments
             var min = 0;
             var max = State.N - 1;
-        
+
             // Convert the values to grayscale pixels
             var pix = new Color[State.Width * State.Height];
             var hueScaling = (State.N - 1) / ((float)State.N);
@@ -52,12 +54,12 @@ namespace MapGeneration
                 pix[y * State.Width + x] = State.Output[x, y] != -1
                     ? Color.HSVToRGB(((float)State.Output[x, y] - min) / (max - min) * hueScaling, 0.8f, 0.8f)
                     : Color.black;
-        
+
             // Set up the texture
             var texture = new Texture2D(State.Width, State.Height);
             var rend = GetComponent<Renderer>();
             rend.sharedMaterial.mainTexture = texture;
-        
+
             // Copy the pixel data to the texture
             texture.SetPixels(pix);
             texture.filterMode = FilterMode.Point;
@@ -69,18 +71,18 @@ namespace MapGeneration
             var noise = State.Channels["Noise"];
             var max = noise.Cast<float>().Max();
             var min = noise.Cast<float>().Min();
-        
+
             // Set up the texture and a Color array to hold pixels during processing
             var texture = new Texture2D(State.Width, State.Height);
             var pix = new Color[State.Width * State.Height];
             var rend = GetComponent<Renderer>();
             rend.sharedMaterial.mainTexture = texture;
-        
+
             // Convert the values to grayscale pixels
             for (var x = 0; x < State.Width; x++)
             for (var y = 0; y < State.Height; y++)
                 pix[y * State.Width + x] = Color.Lerp(Color.black, Color.white, (noise[x, y] - min) / (max - min));
-        
+
             // Copy the pixel data to the texture and load it into the GPU
             texture.SetPixels(pix);
             texture.filterMode = FilterMode.Point;
@@ -89,18 +91,16 @@ namespace MapGeneration
     }
 
 #if UNITY_EDITOR
-    [CustomEditor(typeof(GridTextureDisplay))]
-    public class GridTextureDisplayEditor : Editor
+    [CustomEditor(typeof(PreviewDisplay))]
+    public class PreviewDisplayEditor : GridDisplayEditor
     {
         public override void OnInspectorGUI()
         {
-            var grid = (GridTextureDisplay)target;
-        
+            base.OnInspectorGUI();
             if (GUILayout.Button("Toggle Noise"))
             {
-                grid.ToggleNoise();
+                ((PreviewDisplay)target).ToggleNoise();
             }
-            DrawDefaultInspector();
         }
     }
 #endif

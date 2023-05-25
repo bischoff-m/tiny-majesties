@@ -11,14 +11,6 @@ namespace Editor
     public class GridModelTestWindow : EditorWindow
     {
         private VisualElement _rightPane;
-        
-        [MenuItem("Tools/Grid Model Preview")]
-        public static void ShowMyEditor()
-        {
-            // This method is called when the user selects the menu item in the Editor
-            EditorWindow wnd = GetWindow<GridModelTestWindow>();
-            wnd.titleContent = new GUIContent("Grid Model Preview");
-        }
 
         public void CreateGUI()
         {
@@ -33,12 +25,20 @@ namespace Editor
             splitView.Add(leftPane);
             _rightPane = new VisualElement();
             splitView.Add(_rightPane);
-            
+
             leftPane.makeItem = () => new Label();
-            leftPane.bindItem = (item, index) => { ((Label)item).text = "Test"; };
-            leftPane.itemsSource = new string[] { "Test" };
-            
+            leftPane.bindItem = (item, _) => { ((Label)item).text = "Test"; };
+            leftPane.itemsSource = new[] { "Test" };
+
             leftPane.onSelectionChange += OnSelected;
+        }
+
+        [MenuItem("Tools/Grid Model Preview")]
+        public static void ShowMyEditor()
+        {
+            // This method is called when the user selects the menu item in the Editor
+            EditorWindow wnd = GetWindow<GridModelTestWindow>();
+            wnd.titleContent = new GUIContent("Grid Model Preview");
         }
 
         private void OnSelected(IEnumerable<object> selected)

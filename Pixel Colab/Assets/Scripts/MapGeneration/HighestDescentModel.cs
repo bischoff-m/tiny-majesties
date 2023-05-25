@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using Random = System.Random;
 
+// TODO: Implement as coroutine to allow for pausing https://docs.unity3d.com/Manual/Coroutines.html
+// IDEAS FOR ALGORITHM IMPROVEMENTS
 // TODO: Use different noise function for each segment
 // TODO: Do not save all neighbors to make more efficient
 // TODO: Rewrite as shader if parallelization is possible
@@ -28,36 +31,41 @@ namespace MapGeneration
 
     public class HighestDescentModel : GridModel
     {
-        [Range(0, 50)]
-        public float noiseScale = 0.5f;
+        [Range(0, 50)] public float noiseScale = 0.5f;
+
         public float noiseXOrigin;
+
         public float noiseYOrigin;
+
+        // Whether a segment is done
+        private bool[] _isDone;
+
+        // List of unoccupied neighbors for each segment
+        private List<Vector2Int>[] _neighbors;
 
         // Values of the noise at each point
         private float[,] _noise;
+
+        // Random number generator
+        private Random _random;
+
         // Index of the corresponding segment for each point (-1 is unoccupied)
         private int[,] _tilemap;
-        // List of unoccupied neighbors for each segment
-        private List<Vector2Int>[] _neighbors;
-        // Whether a segment is done
-        private bool[] _isDone;
-        // Random number generator
-        private System.Random _random;
-        
+
         public HighestDescentModel()
         {
             _noise = new float[0, 0];
             _tilemap = new int[0, 0];
             _neighbors = Array.Empty<List<Vector2Int>>();
             _isDone = Array.Empty<bool>();
-            _random = new System.Random(seed);
+            _random = new Random(seed);
         }
 
         public void OnValidate()
         {
             if (!EditingEnabled)
                 return;
-            
+
             // Delayed call because displays could call DestroyImmediate() which should not be done during OnValidate()
             if (!IsInitialized())
             {
@@ -78,58 +86,58 @@ namespace MapGeneration
         public override bool IsInitialized()
         {
             return _noise != null
-                && _tilemap != null
-                && _neighbors != null
-                && _isDone != null
-                && _noise.GetLength(0) == width
-                && _noise.GetLength(1) == height
-                && _tilemap.GetLength(0) == width
-                && _tilemap.GetLength(1) == height
-                && _neighbors.Length == n
-                && _isDone.Length == n;
+                   && _tilemap != null
+                   && _neighbors != null
+                   && _isDone != null
+                   && _noise.GetLength(0) == width
+                   && _noise.GetLength(1) == height
+                   && _tilemap.GetLength(0) == width
+                   && _tilemap.GetLength(1) == height
+                   && _neighbors.Length == n
+                   && _isDone.Length == n;
         }
 
         protected override void InitializeModel()
         {
             // _random
-            _random = new System.Random(seed);
-        
+            _random = new Random(seed);
+
             // isRunning
             IsRunning = false;
-        
+
             // _noise
             _noise = new float[width, height];
-        
+
             // _isDone
             _isDone = Enumerable.Repeat(false, n).ToArray();
-        
+
             // _tilemap
             _tilemap = new int[width, height];
             for (var x = 0; x < width; x++)
             for (var y = 0; y < height; y++)
                 _tilemap[x, y] = -1;
-        
+
             // _neighbors
             _neighbors = new List<Vector2Int>[n];
             for (var i = 0; i < n; i++)
                 _neighbors[i] = new List<Vector2Int>();
-        
+
             SampleNoise();
             ChooseInitPoints();
         }
-    
+
         public override void Step()
         {
             for (var i = 0; i < n; i++)
             {
                 if (_neighbors[i].Count == 0) _isDone[i] = true;
                 if (_isDone[i]) continue;
-            
+
                 var choice = ChooseNeighbor(i);
                 _isDone[i] = Mark(choice, i);
             }
         }
-    
+
         protected override bool IsDone() => _isDone.All(x => x);
 
         protected override GridState GetState()
@@ -153,7 +161,7 @@ namespace MapGeneration
             for (var y = 0; y < height; y++)
             {
                 var xCoord = x / 100f * noiseScale + noiseXOrigin;
-                var yCoord = y / 100f  * noiseScale + noiseYOrigin;
+                var yCoord = y / 100f * noiseScale + noiseYOrigin;
                 _noise[x, y] = Mathf.PerlinNoise(xCoord, yCoord);
             }
         }
@@ -201,7 +209,7 @@ namespace MapGeneration
         {
             var neighbors = _neighbors[segment];
             if (neighbors.Count == 0) throw new Exception("No neighbors to choose from");
-        
+
             // Sample a random neighbor based on the noise value
             var total = neighbors.Select(point => _noise[point.x, point.y]).Sum();
             var rnd = _random.NextDouble();
@@ -212,8 +220,9 @@ namespace MapGeneration
                     return neighbor;
                 rnd -= value;
             }
+
             throw new InvalidOperationException("The proportions in the collection do not add up to 1.");
-        
+
             // ALTERNATIVE ALGORITHM
             // Choose the neighbor with the highest noise value
             // var max = neighbors.Max(point => _noise[point.x, point.y]);
