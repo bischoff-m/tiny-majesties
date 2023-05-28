@@ -4,10 +4,9 @@ using UnityEngine;
 
 namespace MapGeneration
 {
-    public class MapDisplay : GridDisplay
+    public abstract class MapDisplay : GridDisplay
     {
-        public List<GameObject> prefabs = new();
-
+        // The scale of the tiles
         [Range(0.01f, 10)] public float scale = 1;
 
         // Holds the segment indices that correspond to the tiles that are currently in the scene
@@ -16,7 +15,7 @@ namespace MapGeneration
         // Holds the tile game objects that are currently in the scene
         private GameObject[,] _tiles;
 
-        public MapDisplay()
+        protected MapDisplay()
         {
             _tiles = new GameObject[0, 0];
             _lastOutput = new int[0, 0];
@@ -26,7 +25,7 @@ namespace MapGeneration
         public new void OnValidate()
         {
             base.OnValidate();
-            if (prefabs.Count == 0 || State == null)
+            if (!HasTilePrefabs() || State == null)
                 return;
 
             EditorApplication.delayCall += delegate
@@ -42,9 +41,22 @@ namespace MapGeneration
         }
 #endif
 
+        // Returns the prefab that should be spawned for the given segment with dimensions (1, 1)
+        protected abstract GameObject InstantiateTile(int segment);
+
+        // Returns whether there are tile prefabs for every segment that can be spawned
+        protected abstract bool HasTilePrefabs();
+
+        // Every MapDisplay has a set of tiles to choose from for every segment
+        // This method returns the index of the tile that should be spawned for the given segment
+        protected static int ChooseTile<T>(int segment, List<T> tileList)
+        {
+            return segment % tileList.Count;
+        }
+
         public override void Initialize()
         {
-            if (prefabs.Count == 0 || State == null || !Model.EditingEnabled)
+            if (!HasTilePrefabs() || State == null || !Model.EditingEnabled)
                 return;
 
             // Initialize tiles with null
@@ -62,7 +74,7 @@ namespace MapGeneration
 
         protected override void Draw()
         {
-            if (prefabs.Count == 0 || State == null || !Model.EditingEnabled)
+            if (!HasTilePrefabs())
                 return;
             if (State.Width != _tiles.GetLength(0) || State.Height != _tiles.GetLength(1))
                 Initialize();
@@ -83,20 +95,17 @@ namespace MapGeneration
             if (segment == -1)
                 return;
 
-            var newPrefab = ChoosePrefab(segment);
-            var newTile = Instantiate(newPrefab, transform, true);
+            // var newPrefab = ChoosePrefab(segment);
+            var newTile = InstantiateTile(segment);
+            // var newTile = Instantiate(newPrefab, transform, true);
             newTile.transform.localPosition = new Vector3(
                 (State.Width / 2f - x - 0.5f) * scale,
                 (State.Height / 2f - y - 0.5f) * scale,
                 0);
-            newTile.transform.localScale = scale * newPrefab.transform.localScale;
-            newTile.name = $"Tile {x}, {y} ({newPrefab.name})";
+            newTile.transform.localScale *= scale;
+            // newTile.transform.localScale = scale * newPrefab.transform.localScale;
+            newTile.name = $"Tile {x}, {y} ({newTile.name})";
             _tiles[x, y] = newTile;
-        }
-
-        private GameObject ChoosePrefab(int segment)
-        {
-            return prefabs[segment % prefabs.Count];
         }
     }
 

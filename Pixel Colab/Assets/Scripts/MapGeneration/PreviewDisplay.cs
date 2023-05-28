@@ -26,7 +26,7 @@ namespace MapGeneration
         public void ToggleNoise()
         {
             _showNoise = !_showNoise;
-            if (Model)
+            if (State != null && Model && Model.EditingEnabled)
                 Draw();
         }
 

@@ -40,7 +40,8 @@ namespace MapGeneration
         public void SetState(GridState newState)
         {
             State = newState;
-            Draw();
+            if (State != null && Model.EditingEnabled)
+                Draw();
         }
 
         private void AttachSelfAsDisplay()
