@@ -1,2 +1,2 @@
-# pixel-wallpaper-colab
-Collaborative online Unity game that replaces your desktop wallpaper.
+# Tiny Majesties
+Unity game to be used as a desktop wallpaper.
